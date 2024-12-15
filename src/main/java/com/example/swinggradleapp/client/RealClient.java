@@ -1,7 +1,6 @@
 package com.example.swinggradleapp.client;
 
 import com.example.swinggradleapp.MainFrame;
-import com.example.swinggradleapp.datatransfer.BoardDataTransfer;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -11,6 +10,8 @@ import org.java_websocket.handshake.ServerHandshake;
 
 import javax.swing.*;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * RealClient manages real-time communication with the backend server using WebSockets.
@@ -23,7 +24,7 @@ public class RealClient implements Client {
     /**
      * Constructs a RealClient with the specified server URI and MainFrame reference.
      *
-     * @param serverUri The WebSocket server URI.
+     * @param serverUri The WebSocket server URI including boardId as query parameter.
      * @param mainFrame Reference to the MainFrame for UI updates.
      */
     public RealClient(String serverUri, MainFrame mainFrame) {
@@ -132,19 +133,27 @@ public class RealClient implements Client {
                 break;
 
             case "DRAW":
-                // Server broadcasts a draw action
-                int x = jsonMessage.get("x").getAsInt();
-                int y = jsonMessage.get("y").getAsInt();
-                int colorInt = jsonMessage.get("color").getAsInt();
-                String colorHex = colorInt == 1 ? "#000000" : "#FFFFFF"; // 1: black, 0: white
-                mainFrame.drawLine(x, y, colorHex);
+            case "UPDATE":
+                // Both DRAW and UPDATE contain a list of points
+                JsonArray pointsArray = jsonMessage.get("points").getAsJsonArray();
+                List<MainFrame.PointData> points = new ArrayList<>();
+                for (int i = 0; i < pointsArray.size(); i++) {
+                    JsonObject pointObj = pointsArray.get(i).getAsJsonObject();
+                    int x = pointObj.get("x").getAsInt();
+                    int y = pointObj.get("y").getAsInt();
+                    int pen = pointObj.get("pen").getAsInt();
+                    points.add(new MainFrame.PointData(x, y, pen));
+                }
+                mainFrame.applyPoints(points);
                 break;
 
-            case "UPDATE":
-                // Server sends the entire board matrix
-                JsonArray updatedMatrixArray = jsonMessage.get("matrix").getAsJsonArray();
-                int[][] updatedMatrix = parseMatrix(updatedMatrixArray);
-                mainFrame.updateBoard(updatedMatrix);
+            case "ERROR":
+                // Server sends an error message
+                String errorMsg = jsonMessage.get("message").getAsString();
+                JOptionPane.showMessageDialog(mainFrame,
+                        "Server Error: " + errorMsg,
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
                 break;
 
             // Handle more message types as needed
@@ -155,9 +164,9 @@ public class RealClient implements Client {
     }
 
     /**
-     * Parses a JsonArray into a 2D int array representing the board matrix.
+     * Parses the board matrix from JsonArray to 2D int array.
      *
-     * @param matrixArray The JsonArray containing the board matrix.
+     * @param matrixArray The JsonArray representing the board matrix.
      * @return The 2D int array.
      */
     private int[][] parseMatrix(JsonArray matrixArray) {
