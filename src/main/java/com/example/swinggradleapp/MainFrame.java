@@ -72,12 +72,18 @@ public class MainFrame extends JFrame {
     private void initLoginPanel() {
         loginPanel = new JPanel(new BorderLayout(10, 10));
         loginPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        loginPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel promptLabel = new JLabel("Enter Your Name:");
         nameField = new JTextField();
         nameField.setPreferredSize(new Dimension(200, 30)); // Adjust size for aesthetics
         enterButton = new JButton("Enter");
         enterButton.setPreferredSize(new Dimension(100, 30)); // Adjust size for aesthetics
+
+        // Set a larger font for the nameField
+        Font textFieldFont = new Font("SansSerif", Font.PLAIN, 48); // Creating a new Font object
+        nameField.setFont(textFieldFont); // Applying the font to the JTextField
+
 
         // Add Action Listener to Enter Button using Lambda
         enterButton.addActionListener(e -> {
