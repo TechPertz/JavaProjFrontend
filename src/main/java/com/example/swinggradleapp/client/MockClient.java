@@ -1,6 +1,7 @@
 package com.example.swinggradleapp.client;
 
 import com.example.swinggradleapp.MainFrame;
+import com.example.swinggradleapp.utils.Config;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -18,7 +19,7 @@ public class MockClient implements Client {
     private final MainFrame mainFrame;
     private final Gson gson = new Gson();
     private Timer mockTimer;
-    private String boardId;
+    private final String boardId;
 
     public MockClient(MainFrame mainFrame, String boardId) {
         this.mainFrame = mainFrame;
@@ -27,13 +28,8 @@ public class MockClient implements Client {
 
     @Override
     public boolean connect() {
-        SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(mainFrame,
-                "Connected to Mock Server with boardId: " + boardId,
-                "Mock Connection",
-                JOptionPane.INFORMATION_MESSAGE));
-
+        SwingUtilities.invokeLater(() -> showInfoDialog("Connected to Mock Server with boardId: " + boardId, "Mock Connection"));
         startMockBroadcasts();
-
         return true;
     }
 
@@ -42,34 +38,42 @@ public class MockClient implements Client {
         mockTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                JsonObject updateMessage = new JsonObject();
-                updateMessage.addProperty("type", "UPDATE");
-                JsonArray pointsArray = new JsonArray();
-
-                for (int i = 0; i < 5; i++) {
-                    JsonObject point = new JsonObject();
-                    int x = (int) (Math.random() * 800);
-                    int y = (int) (Math.random() * 600);
-                    int pen = Math.random() < 0.5 ? 0 : 1;
-                    point.addProperty("x", x);
-                    point.addProperty("y", y);
-                    point.addProperty("pen", pen);
-                    pointsArray.add(point);
-                }
-
-                updateMessage.add("points", pointsArray);
-
-                mainFrame.applyPoints(parsePoints(updateMessage.getAsJsonArray("points")));
+                JsonObject updateMessage = createMockUpdateMessage();
+                List<MainFrame.PointData> points = parsePoints(updateMessage.getAsJsonArray("points"));
+                mainFrame.applyPoints(points);
             }
-        }, 5000, 5000); // Every 5 seconds
+        }, 5000, 5000);
+    }
+
+    private JsonObject createMockUpdateMessage() {
+        JsonObject updateMessage = new JsonObject();
+        updateMessage.addProperty("type", "UPDATE");
+        JsonArray pointsArray = generateRandomPoints(5);
+        updateMessage.add("points", pointsArray);
+        return updateMessage;
+    }
+
+    private JsonArray generateRandomPoints(int count) {
+        JsonArray pointsArray = new JsonArray();
+        for (int i = 0; i < count; i++) {
+            JsonObject point = new JsonObject();
+            int x = (int) (Math.random() * Config.BOARD_HEIGHT); // x as vertical (rows)
+            int y = (int) (Math.random() * Config.BOARD_WIDTH);  // y as horizontal (columns)
+            int pen = Math.random() < 0.5 ? 0 : 1;
+            point.addProperty("x", x);
+            point.addProperty("y", y);
+            point.addProperty("pen", pen);
+            pointsArray.add(point);
+        }
+        return pointsArray;
     }
 
     private List<MainFrame.PointData> parsePoints(JsonArray pointsArray) {
         List<MainFrame.PointData> points = new ArrayList<>();
         for (int i = 0; i < pointsArray.size(); i++) {
             JsonObject pointObj = pointsArray.get(i).getAsJsonObject();
-            int x = pointObj.get("x").getAsInt();
-            int y = pointObj.get("y").getAsInt();
+            int x = pointObj.get("x").getAsInt(); // vertical
+            int y = pointObj.get("y").getAsInt(); // horizontal
             int pen = pointObj.get("pen").getAsInt();
             points.add(new MainFrame.PointData(x, y, pen));
         }
@@ -81,19 +85,10 @@ public class MockClient implements Client {
         JsonObject jsonMessage = gson.fromJson(message, JsonObject.class);
         String type = jsonMessage.get("type").getAsString();
 
-        if (type.equals("DRAW")) {
+        if ("DRAW".equals(type)) {
             JsonArray pointsArray = jsonMessage.get("points").getAsJsonArray();
-            List<MainFrame.PointData> points = new ArrayList<>();
-            for (int i = 0; i < pointsArray.size(); i++) {
-                JsonObject pointObj = pointsArray.get(i).getAsJsonObject();
-                int x = pointObj.get("x").getAsInt();
-                int y = pointObj.get("y").getAsInt();
-                int pen = pointObj.get("pen").getAsInt();
-                points.add(new MainFrame.PointData(x, y, pen));
-            }
-
+            List<MainFrame.PointData> points = parsePoints(pointsArray);
             mainFrame.applyPoints(points);
-
         }
     }
 
@@ -102,9 +97,10 @@ public class MockClient implements Client {
         if (mockTimer != null) {
             mockTimer.cancel();
         }
-        SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(mainFrame,
-                "Disconnected from Mock Server.",
-                "Mock Disconnection",
-                JOptionPane.INFORMATION_MESSAGE));
+        SwingUtilities.invokeLater(() -> showInfoDialog("Disconnected from Mock Server.", "Mock Disconnection"));
+    }
+
+    private void showInfoDialog(String message, String title) {
+        JOptionPane.showMessageDialog(mainFrame, message, title, JOptionPane.INFORMATION_MESSAGE);
     }
 }
