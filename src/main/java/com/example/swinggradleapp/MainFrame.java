@@ -25,66 +25,50 @@ public class MainFrame extends JFrame {
     private final CardLayout cardLayout;
     private final JPanel mainPanel;
 
-    // Login Panel Components
     private JPanel loginPanel;
     private JTextField nameField;
     private JButton enterButton;
 
-    // Whiteboard Panel Components
     private JPanel whiteboardPanel;
     private JButton penButton;
     private JButton eraserButton;
     private Canvas whiteboardCanvas;
 
-    // Client Interface
     private Client client;
 
-    // Gson instance for JSON handling
     private final Gson gson = new Gson();
 
-    // Pen radius
     private int penRadius = 10; // Default radius, can be modified
 
-    // List to store points during a drawing session
     private List<PointData> currentPoints = new ArrayList<>();
 
-    // Flag to track if mouse is pressed
     private boolean isDrawing = false;
 
-    // Board ID for WebSocket connection
     private String boardId;
 
-    // Username (used for LEAVE message in real client)
     private String username;
 
     public MainFrame(String title) {
         super(title);
 
-        // Initialize CardLayout
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
 
-        // Initialize Panels
         initLoginPanel();
         initWhiteboardPanel();
 
-        // Add Panels to CardLayout
         mainPanel.add(loginPanel, "Login");
         mainPanel.add(whiteboardPanel, "Whiteboard");
 
-        // Add mainPanel to JFrame
         this.getContentPane().add(mainPanel);
 
-        // Set initial panel
         cardLayout.show(mainPanel, "Login");
 
-        // Set JFrame properties
         this.setSize(800, 600); // Adjusted initial size for better visibility
         this.setMinimumSize(new Dimension(800, 600)); // Set minimum size
         this.setLocationRelativeTo(null); // Center on screen
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        // Handle window closing to send LEAVE message
         this.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -96,9 +80,6 @@ public class MainFrame extends JFrame {
         });
     }
 
-    /**
-     * Initializes the login panel where users can enter their username.
-     */
     private void initLoginPanel() {
         loginPanel = new JPanel(new GridBagLayout());
         loginPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -115,7 +96,6 @@ public class MainFrame extends JFrame {
         enterButton = new JButton("Enter");
         enterButton.setFont(new Font("Arial", Font.BOLD, 16));
 
-        // Add Action Listener to Enter Button using Lambda
         enterButton.addActionListener(e -> {
             String name = nameField.getText().trim();
             if (name.isEmpty()) {
@@ -126,20 +106,16 @@ public class MainFrame extends JFrame {
                 return;
             }
 
-            // Disable UI components during login
             enterButton.setEnabled(false);
             nameField.setEnabled(false);
 
             if (Config.USE_REAL_CLIENT) {
-                // Perform real login via HTTP POST
                 new Thread(() -> performLogin(name)).start();
             } else {
-                // Simulate login with mock data
                 simulateLogin(name);
             }
         });
 
-        // Layout adjustments for better aesthetics
         gbc.gridx = 0;
         gbc.gridy = 0;
         loginPanel.add(promptLabel, gbc);
@@ -153,27 +129,18 @@ public class MainFrame extends JFrame {
         loginPanel.add(enterButton, gbc);
     }
 
-    /**
-     * Simulates the login process when USE_REAL_CLIENT is false.
-     *
-     * @param name The username entered by the user.
-     */
+
     private void simulateLogin(String name) {
-        // Generate mock data
         this.username = name;
         String mockUserId = "mockUser123";
         this.boardId = "mockBoard456";
         String confirmationMsg = "Welcome, " + name + "! (Mock Connection)";
 
-        // Generate a simple initial matrix (all zeros)
         int[][] matrix = new int[800][600]; // Adjusted size to match whiteboardCanvas
 
-        // Initialize and connect MockClient
         SwingUtilities.invokeLater(() -> {
-            // Initialize WebSocket with mock data
             initializeWebSocket(boardId, matrix);
 
-            // Show confirmation message
             JOptionPane.showMessageDialog(MainFrame.this,
                     confirmationMsg,
                     "Login Successful",
@@ -181,11 +148,6 @@ public class MainFrame extends JFrame {
         });
     }
 
-    /**
-     * Performs the login POST request to the server.
-     *
-     * @param name The username entered by the user.
-     */
     private void performLogin(String name) {
         try {
             URL url = new URL(Config.LOGIN_URL);
@@ -194,17 +156,14 @@ public class MainFrame extends JFrame {
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setDoOutput(true);
 
-            // Create JSON payload
             JsonObject loginPayload = new JsonObject();
             loginPayload.addProperty("username", name);
 
-            // Write payload to request body
             OutputStream os = conn.getOutputStream();
             byte[] input = gson.toJson(loginPayload).getBytes("utf-8");
             os.write(input, 0, input.length);
             os.close();
 
-            // Get response
             int responseCode = conn.getResponseCode();
             if (responseCode == 200 || responseCode == 201) { // HTTP OK
                 BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"));
@@ -218,19 +177,17 @@ public class MainFrame extends JFrame {
                 String response = responseBuilder.toString();
                 JsonObject responseJson = JsonParser.parseString(response).getAsJsonObject();
 
-                // Extract fields
                 String userId = responseJson.get("user_id").getAsString();
                 boardId = responseJson.get("board_id").getAsString();
                 String confirmationMsg = responseJson.get("message").getAsString();
                 JsonArray matrixArray = responseJson.get("board_matrix_data").getAsJsonArray();
 
-                // Parse matrix
                 int[][] matrix = parseMatrix(matrixArray);
 
-                // Initialize and connect RealClient
+
+
                 SwingUtilities.invokeLater(() -> {
                     initializeWebSocket(boardId, matrix);
-                    // Show confirmation message
                     JOptionPane.showMessageDialog(MainFrame.this,
                             confirmationMsg,
                             "Login Successful",
@@ -238,13 +195,11 @@ public class MainFrame extends JFrame {
                 });
 
             } else {
-                // Handle non-OK response
                 SwingUtilities.invokeLater(() -> {
                     JOptionPane.showMessageDialog(MainFrame.this,
                             "Login failed with response code: " + responseCode,
                             "Login Error",
                             JOptionPane.ERROR_MESSAGE);
-                    // Re-enable UI components
                     enterButton.setEnabled(true);
                     nameField.setEnabled(true);
                 });
@@ -259,19 +214,12 @@ public class MainFrame extends JFrame {
                         "An error occurred during login: " + ex.getMessage(),
                         "Login Error",
                         JOptionPane.ERROR_MESSAGE);
-                // Re-enable UI components
                 enterButton.setEnabled(true);
                 nameField.setEnabled(true);
             });
         }
     }
 
-    /**
-     * Parses the board matrix from JsonArray to 2D int array.
-     *
-     * @param matrixArray The JsonArray representing the board matrix.
-     * @return The 2D int array.
-     */
     private int[][] parseMatrix(JsonArray matrixArray) {
         int rows = matrixArray.size();
         int cols = matrixArray.get(0).getAsJsonArray().size();
@@ -289,14 +237,7 @@ public class MainFrame extends JFrame {
         return matrix;
     }
 
-    /**
-     * Initializes the WebSocket connection after receiving boardId and initial matrix.
-     *
-     * @param boardId The boardId received from the login response.
-     * @param matrix  The initial board matrix.
-     */
     private void initializeWebSocket(String boardId, int[][] matrix) {
-        // Update the WebSocket URL with boardId as query parameter
         String websocketWithBoardId = Config.WEBSOCKET_URL + "?boardId=" + boardId;
 
         if (Config.USE_REAL_CLIENT) {
@@ -320,27 +261,22 @@ public class MainFrame extends JFrame {
             return;
         }
 
-        // Show Whiteboard Panel
+//        handleInitialBoard(matrix);
+
         SwingUtilities.invokeLater(() -> {
             cardLayout.show(mainPanel, "Whiteboard");
-            // Update the board with the initial matrix
             handleInitialBoard(matrix);
         });
     }
 
-    /**
-     * Initializes the whiteboard panel where users can draw and erase.
-     */
     private void initWhiteboardPanel() {
         whiteboardPanel = new JPanel(new BorderLayout(10, 10));
         whiteboardPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Top Panel: Tools
         JPanel toolsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         penButton = new JButton("Pen");
         eraserButton = new JButton("Eraser");
 
-        // Pen Radius Slider
         JSlider penRadiusSlider = new JSlider(JSlider.HORIZONTAL, 1, 50, penRadius);
         penRadiusSlider.setMajorTickSpacing(10);
         penRadiusSlider.setMinorTickSpacing(1);
@@ -354,15 +290,12 @@ public class MainFrame extends JFrame {
         toolsPanel.add(penButton);
         toolsPanel.add(eraserButton);
 
-        // Canvas for Drawing
         whiteboardCanvas = new Canvas(); // Use default constructor
         whiteboardCanvas.setPreferredSize(new Dimension(800, 600)); // Adjusted size
         whiteboardCanvas.setBackground(Color.WHITE); // Set background color
 
-        // Set initial drawing color
         whiteboardCanvas.setForeground(Color.BLACK);
 
-        // Mouse Event Handlers
         whiteboardCanvas.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
@@ -390,7 +323,6 @@ public class MainFrame extends JFrame {
             }
         });
 
-        // Action Listeners for Tools using Lambda
         penButton.addActionListener(e -> whiteboardCanvas.setForeground(Color.BLACK)); // Set pen color to black
         eraserButton.addActionListener(e -> whiteboardCanvas.setForeground(Color.WHITE)); // Set pen color to white (eraser)
 
@@ -398,22 +330,12 @@ public class MainFrame extends JFrame {
         whiteboardPanel.add(whiteboardCanvas, BorderLayout.CENTER);
     }
 
-    /**
-     * Adds a point to the currentPoints list and draws it on the canvas.
-     *
-     * @param x     The x-coordinate.
-     * @param y     The y-coordinate.
-     * @param color The color to draw.
-     */
     private void addPoint(int x, int y, Color color) {
         int pen = color.equals(Color.BLACK) ? 1 : 0;
         currentPoints.add(new PointData(x, y, pen));
         drawCircle(x, y, color);
     }
 
-    /**
-     * Sends the DRAW message with the list of points.
-     */
     private void sendDrawMessage() {
         if (currentPoints.isEmpty()) return;
 
@@ -423,8 +345,8 @@ public class MainFrame extends JFrame {
         JsonArray pointsArray = new JsonArray();
         for (PointData point : currentPoints) {
             JsonObject pointObj = new JsonObject();
-            pointObj.addProperty("x", point.x);
-            pointObj.addProperty("y", point.y);
+            pointObj.addProperty("x", point.y);
+            pointObj.addProperty("y", point.x);
             pointObj.addProperty("pen", point.pen);
             pointsArray.add(pointObj);
         }
@@ -435,22 +357,12 @@ public class MainFrame extends JFrame {
         currentPoints.clear();
     }
 
-    /**
-     * Draws a filled circle on the canvas at the specified coordinates.
-     *
-     * @param x     The x-coordinate.
-     * @param y     The y-coordinate.
-     * @param color The color to draw.
-     */
     private void drawCircle(int x, int y, Color color) {
         Graphics2D g2d = (Graphics2D) whiteboardCanvas.getGraphics();
         g2d.setColor(color);
         g2d.fillOval(x - penRadius, y - penRadius, penRadius * 2, penRadius * 2);
     }
 
-    /**
-     * Sends a LEAVE message to the server when the user disconnects.
-     */
     private void sendLeaveMessage() {
         if (client != null && Config.USE_REAL_CLIENT && username != null) {
             JsonObject leaveMessage = new JsonObject();
@@ -460,21 +372,18 @@ public class MainFrame extends JFrame {
         }
     }
 
-    /**
-     * Updates the entire board based on the received matrix from the server.
-     *
-     * @param matrix The 2D array representing the board state.
-     */
     public void updateBoard(int[][] matrix) {
         SwingUtilities.invokeLater(() -> {
             Graphics2D g2d = (Graphics2D) whiteboardCanvas.getGraphics();
             g2d.setColor(Color.WHITE); // Clear the board
             g2d.fillRect(0, 0, whiteboardCanvas.getWidth(), whiteboardCanvas.getHeight());
 
-            // Redraw based on the matrix
+            System.out.println(matrix.length + " " + matrix[0].length);
+
             for (int x = 0; x < matrix.length; x++) {
                 for (int y = 0; y < matrix[x].length; y++) {
                     if (matrix[x][y] == 1) { // Pen (black)
+//                        System.out.println(x + " " + y);
                         g2d.setColor(Color.BLACK);
                         g2d.fillOval(x - penRadius, y - penRadius, penRadius * 2, penRadius * 2);
                     }
@@ -484,21 +393,11 @@ public class MainFrame extends JFrame {
         });
     }
 
-    /**
-     * Handles the confirmation message from the server containing the initial board data.
-     *
-     * @param matrix The 2D array representing the initial board state.
-     */
     public void handleInitialBoard(int[][] matrix) {
         // Update the board with the initial matrix
         updateBoard(matrix);
     }
 
-    /**
-     * Applies a list of points to the canvas.
-     *
-     * @param points List of points to apply.
-     */
     public void applyPoints(List<PointData> points) {
         SwingUtilities.invokeLater(() -> {
             Graphics2D g2d = (Graphics2D) whiteboardCanvas.getGraphics();
@@ -510,9 +409,6 @@ public class MainFrame extends JFrame {
         });
     }
 
-    /**
-     * Represents a point with x, y coordinates and pen status.
-     */
     public static class PointData {
         int x;
         int y;
