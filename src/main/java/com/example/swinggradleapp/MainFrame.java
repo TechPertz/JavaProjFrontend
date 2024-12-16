@@ -158,6 +158,32 @@ public class MainFrame extends JFrame {
         });
     }
 
+    public void printJsonArray(JsonArray matrixArray){
+        int count = 0;
+        for (int i = 0; i < matrixArray.size(); i++) {
+            for (int j = 0; j < matrixArray.get(i).getAsJsonArray().size(); j++) {
+                int val = matrixArray.get(i).getAsJsonArray().get(j).getAsInt();
+                if(val != 0){
+                    count++;
+                }
+            }
+        }
+        System.out.println("JSON Array Pen Mark count = " + count);
+    }
+
+    private void printIntMatrix(int[][] matrix) {
+        int count = 0;
+        for (int[] ints : matrix) {
+            for (int anInt : ints) {
+//                System.out.print(anInt + " ");
+                if (anInt != 0) {
+                    count++;
+                }
+            }
+        }
+        System.out.println("Int Matrix Pen Mark count = " + count);
+    }
+
     /**
      * Performs the login POST request to the server.
      *
@@ -196,9 +222,9 @@ public class MainFrame extends JFrame {
                 boardId = responseJson.get("board_id").getAsString();
                 String confirmationMsg = responseJson.get("message").getAsString();
                 JsonArray matrixArray = responseJson.get("board_matrix_data").getAsJsonArray();
-
+                printJsonArray(matrixArray);
                 int[][] matrix = parseMatrix(matrixArray);
-
+                printIntMatrix(matrix);
                 SwingUtilities.invokeLater(() -> {
                     initializeWebSocket(boardId, matrix);
                     JOptionPane.showMessageDialog(MainFrame.this,
@@ -232,6 +258,8 @@ public class MainFrame extends JFrame {
             });
         }
     }
+
+
 
     /**
      * Parses the board matrix from JsonArray to 2D int array.
