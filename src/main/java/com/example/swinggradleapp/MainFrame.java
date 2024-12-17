@@ -234,9 +234,9 @@ public class MainFrame extends JFrame {
                 boardId = responseJson.get("board_id").getAsString();
                 String confirmationMsg = responseJson.get("message").getAsString();
                 JsonArray matrixArray = responseJson.get("board_matrix_data").getAsJsonArray();
-                printJsonArray(matrixArray);
+//                printJsonArray(matrixArray);
                 int[][] matrix = parseMatrix(matrixArray);
-                printIntMatrix(matrix);
+//                printIntMatrix(matrix);
                 SwingUtilities.invokeLater(() -> {
                     initializeWebSocket(boardId, matrix);
                     JOptionPane.showMessageDialog(MainFrame.this,

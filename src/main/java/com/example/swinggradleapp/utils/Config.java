@@ -11,6 +11,6 @@ public class Config {
     public static final String LOGIN_URL = "http://localhost:8080/login"; // Update when server is live
 
     // Centralizing board dimensions
-    public static final int BOARD_WIDTH = 300;  // Width in pixels (columns)
-    public static final int BOARD_HEIGHT = 200; // Height in pixels (rows)
+    public static final int BOARD_WIDTH = 800;  // Width in pixels (columns)
+    public static final int BOARD_HEIGHT = 600; // Height in pixels (rows)
 }
