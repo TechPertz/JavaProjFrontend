@@ -32,12 +32,12 @@ public class RealClient implements Client {
         this.webSocketClient = new WebSocketClient(URI.create(serverUri)) {
             @Override
             public void onOpen(ServerHandshake handshakedata) {
-                SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(mainFrame,
-                            "Connected to Server.",
-                            "Connection Successful",
-                            JOptionPane.INFORMATION_MESSAGE);
-                });
+//                SwingUtilities.invokeLater(() -> {
+//                    JOptionPane.showMessageDialog(mainFrame,
+//                            "Connected to Server.",
+//                            "Connection Successful",
+//                            JOptionPane.INFORMATION_MESSAGE);
+//                });
             }
 
             @Override
