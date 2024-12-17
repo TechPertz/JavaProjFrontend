@@ -52,25 +52,37 @@ public class MainFrame extends JFrame {
     public MainFrame(String title) {
         super(title);
 
+        // Initialize CardLayout and mainPanel
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
 
+        // Initialize panels
         initLoginPanel();
         initWhiteboardPanel();
 
+        // Add panels to mainPanel
         mainPanel.add(loginPanel, "Login");
         mainPanel.add(whiteboardPanel, "Whiteboard");
 
+        // Add mainPanel to frame
         this.getContentPane().add(mainPanel);
 
+        // Show Login panel initially
         cardLayout.show(mainPanel, "Login");
 
-        // Set the size exactly to BOARD_WIDTH x BOARD_HEIGHT + space for tools (e.g., 200 width for side panel)
-        this.setSize(Config.BOARD_WIDTH + 200, Config.BOARD_HEIGHT + 100); // Example: 1000x700 for BOARD_WIDTH=800, BOARD_HEIGHT=600
-        this.setMinimumSize(new Dimension(Config.BOARD_WIDTH + 200, Config.BOARD_HEIGHT + 100)); // Set minimum size
+        // Calculate total width and height considering tool panels and padding
+        int toolsPanelWidth = 200;
+        int paddingWidth = 20;
+        int totalWidth = Config.BOARD_WIDTH + toolsPanelWidth + paddingWidth;
+        int totalHeight = Config.BOARD_HEIGHT + 100; // 100 pixels reserved for window decorations
+
+        // Set frame properties
+        this.setSize(totalWidth, totalHeight);
+        this.setMinimumSize(new Dimension(totalWidth, totalHeight));
         this.setLocationRelativeTo(null); // Center on screen
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
+        // Add window listener to handle cleanup on close
         this.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -142,11 +154,11 @@ public class MainFrame extends JFrame {
      */
     private void simulateLogin(String name) {
         this.username = name;
-        String mockUserId = "mockUser123";
         this.boardId = "mockBoard456";
         String confirmationMsg = "Welcome, " + name + "! (Mock Connection)";
 
-        int[][] matrix = new int[Config.BOARD_HEIGHT][Config.BOARD_WIDTH]; // Adjusted size to match whiteboardCanvas
+        // Initialize a blank matrix with dimensions [600][800]
+        int[][] matrix = new int[Config.BOARD_HEIGHT][Config.BOARD_WIDTH];
 
         SwingUtilities.invokeLater(() -> {
             initializeWebSocket(boardId, matrix);
@@ -269,10 +281,13 @@ public class MainFrame extends JFrame {
      */
     private int[][] parseMatrix(JsonArray matrixArray) {
         int rows = matrixArray.size();
-        if (rows == 0) {
-            throw new IllegalArgumentException("Received empty matrix from server.");
+        if (rows != Config.BOARD_HEIGHT) {
+            System.err.println("Warning: Matrix rows (" + rows + ") do not match BOARD_HEIGHT (" + Config.BOARD_HEIGHT + ").");
         }
         int cols = matrixArray.get(0).getAsJsonArray().size();
+        if (cols != Config.BOARD_WIDTH) {
+            System.err.println("Warning: Matrix columns (" + cols + ") do not match BOARD_WIDTH (" + Config.BOARD_WIDTH + ").");
+        }
         System.out.println("Matrix Dimensions: Rows = " + rows + ", Columns = " + cols);
         int[][] matrix = new int[rows][cols];
 
@@ -329,10 +344,16 @@ public class MainFrame extends JFrame {
      * Initializes the whiteboard panel where users can draw and erase.
      */
     private void initWhiteboardPanel() {
-        whiteboardPanel = new JPanel(new BorderLayout(10, 10));
+        whiteboardPanel = new JPanel(new BorderLayout());
         whiteboardPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        JPanel toolsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        // Tools Panel (Pen, Eraser, Pen Radius Slider)
+        JPanel toolsPanel = new JPanel();
+        toolsPanel.setLayout(new BoxLayout(toolsPanel, BoxLayout.Y_AXIS));
+        toolsPanel.setPreferredSize(new Dimension(200, Config.BOARD_HEIGHT));
+        toolsPanel.setMaximumSize(new Dimension(200, Config.BOARD_HEIGHT));
+        toolsPanel.setMinimumSize(new Dimension(200, Config.BOARD_HEIGHT));
+
         penButton = new JButton("Pen");
         eraserButton = new JButton("Eraser");
 
@@ -348,14 +369,31 @@ public class MainFrame extends JFrame {
             System.out.println("Pen Radius set to: " + penRadius);
         });
 
+        penButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        eraserButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        penRadiusSlider.setAlignmentX(Component.CENTER_ALIGNMENT);
+
         toolsPanel.add(penRadiusSlider);
+        toolsPanel.add(Box.createRigidArea(new Dimension(0, 20))); // Spacer
         toolsPanel.add(penButton);
+        toolsPanel.add(Box.createRigidArea(new Dimension(0, 10))); // Spacer
         toolsPanel.add(eraserButton);
+
+        // Drawing Panel Container
+        JPanel drawingContainer = new JPanel(new GridBagLayout());
+        drawingContainer.setPreferredSize(new Dimension(Config.BOARD_WIDTH, Config.BOARD_HEIGHT));
+        drawingContainer.setMinimumSize(new Dimension(Config.BOARD_WIDTH, Config.BOARD_HEIGHT));
+        drawingContainer.setMaximumSize(new Dimension(Config.BOARD_WIDTH, Config.BOARD_HEIGHT));
 
         drawingPanel = new DrawingPanel(Config.BOARD_WIDTH, Config.BOARD_HEIGHT);
         drawingPanel.setPreferredSize(new Dimension(Config.BOARD_WIDTH, Config.BOARD_HEIGHT));
+        drawingPanel.setMinimumSize(new Dimension(Config.BOARD_WIDTH, Config.BOARD_HEIGHT));
+        drawingPanel.setMaximumSize(new Dimension(Config.BOARD_WIDTH, Config.BOARD_HEIGHT));
         drawingPanel.setBackground(Color.WHITE);
 
+        drawingContainer.add(drawingPanel);
+
+        // Add action listeners for tools
         penButton.addActionListener(e -> {
             drawingPanel.setCurrentColor(Color.BLACK); // Set pen color to black
             System.out.println("Pen tool selected.");
@@ -365,8 +403,8 @@ public class MainFrame extends JFrame {
             System.out.println("Eraser tool selected.");
         });
 
-        whiteboardPanel.add(toolsPanel, BorderLayout.NORTH);
-        whiteboardPanel.add(drawingPanel, BorderLayout.CENTER);
+        whiteboardPanel.add(toolsPanel, BorderLayout.WEST);
+        whiteboardPanel.add(drawingContainer, BorderLayout.CENTER);
     }
 
     /**
@@ -396,7 +434,7 @@ public class MainFrame extends JFrame {
             for (int y = 0; y < matrix.length; y++) { // Iterate over rows (y)
                 for (int x = 0; x < matrix[y].length; x++) { // Iterate over columns (x)
                     if (matrix[y][x] == 1) { // Pen (black)
-                        drawingPanel.drawPoint(y, x, Color.BLACK); // Draw at (row, column) => (y, x)
+                        drawingPanel.plotPoint(x, y, Color.BLACK); // Plot single pixel
                     }
                     // If matrix[y][x] == 0, it's white; no need to draw since the background is white
                 }
@@ -424,7 +462,7 @@ public class MainFrame extends JFrame {
         SwingUtilities.invokeLater(() -> {
             for (PointData point : points) {
                 Color color = point.pen == 1 ? Color.BLACK : Color.WHITE;
-                drawingPanel.drawPoint(point.x, point.y, color);
+                drawingPanel.plotPoint(point.x, point.y, color); // Plot single pixel
             }
             System.out.println("Applied " + points.size() + " points from server.");
         });
@@ -434,8 +472,8 @@ public class MainFrame extends JFrame {
      * Represents a point with x, y coordinates and pen status.
      */
     public static class PointData {
-        int x;
-        int y;
+        int x; // Column (width)
+        int y; // Row (height)
         int pen;
 
         public PointData(int x, int y, int pen) {
@@ -454,29 +492,32 @@ public class MainFrame extends JFrame {
         private Color currentColor = Color.BLACK;
 
         public DrawingPanel(int width, int height) {
+            // Initialize BufferedImage with exact dimensions
             this.canvasImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
             this.g2d = canvasImage.createGraphics();
             this.g2d.setColor(Color.WHITE);
             this.g2d.fillRect(0, 0, width, height);
             this.g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            // Add mouse listeners to the DrawingPanel
+            // Add mouse listeners to handle drawing
             this.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mousePressed(MouseEvent e) {
                     isDrawing = true;
                     currentPoints.clear();
-                    int row = e.getY();
-                    int col = e.getX();
-                    addPoint(row, col, currentColor);
+                    int y = e.getY();
+                    int x = e.getX();
+                    System.out.println("Mouse Pressed at (" + x + ", " + y + ")");
+                    addPoint(y, x, currentColor);
                 }
 
                 @Override
                 public void mouseReleased(MouseEvent e) {
                     if (isDrawing) {
-                        int row = e.getY();
-                        int col = e.getX();
-                        addPoint(row, col, currentColor);
+                        int y = e.getY();
+                        int x = e.getX();
+                        System.out.println("Mouse Released at (" + x + ", " + y + ")");
+                        addPoint(y, x, currentColor);
                         sendDrawMessage();
                         isDrawing = false;
                     }
@@ -487,35 +528,65 @@ public class MainFrame extends JFrame {
                 @Override
                 public void mouseDragged(MouseEvent e) {
                     if (isDrawing) {
-                        int row = e.getY();
-                        int col = e.getX();
-                        addPoint(row, col, currentColor);
+                        int y = e.getY();
+                        int x = e.getX();
+                        System.out.println("Mouse Dragged to (" + x + ", " + y + ")");
+                        addPoint(y, x, currentColor);
                     }
                 }
             });
         }
 
+        /**
+         * Sets the current drawing color.
+         *
+         * @param color The color to set.
+         */
         public void setCurrentColor(Color color) {
             this.currentColor = color;
+            System.out.println("Current drawing color set to: " + (color.equals(Color.BLACK) ? "Black" : "White"));
         }
 
         /**
-         * Draws a point on the canvas.
+         * Draws a point on the canvas with pen size.
+         * Used for local drawing.
          *
          * @param row   The row (y-coordinate).
          * @param col   The column (x-coordinate).
          * @param color The color to draw.
          */
-        public void drawPoint(int row, int col, Color color) {
-            // Ensure row and col are within bounds
-            if (row < 0) row = 0;
-            if (row > Config.BOARD_HEIGHT) row = Config.BOARD_HEIGHT;
-            if (col < 0) col = 0;
-            if (col > Config.BOARD_WIDTH) col = Config.BOARD_WIDTH;
+        public void drawLocalPoint(int row, int col, Color color) {
+            // Clamp coordinates to board boundaries
+            row = Math.max(0, Math.min(row, Config.BOARD_HEIGHT - 1));
+            col = Math.max(0, Math.min(col, Config.BOARD_WIDTH - 1));
 
             g2d.setColor(color);
             g2d.fillOval(col - penRadius, row - penRadius, penRadius * 2, penRadius * 2);
             repaint();
+
+            // Debug statement
+            System.out.println("Drew local point at (" + col + ", " + row + ") with color " + (color.equals(Color.BLACK) ? "Black" : "White"));
+        }
+
+        /**
+         * Plots a single pixel on the canvas.
+         * Used for remote drawing.
+         *
+         * @param x     The column (x-coordinate).
+         * @param y     The row (y-coordinate).
+         * @param color The color to draw.
+         */
+        public void plotPoint(int x, int y, Color color) {
+            // Clamp coordinates to board boundaries
+            x = Math.max(0, Math.min(x, Config.BOARD_WIDTH - 1));
+            y = Math.max(0, Math.min(y, Config.BOARD_HEIGHT - 1));
+
+            g2d.setColor(color);
+            g2d.fillRect(x, y, 1, 1); // Draw single pixel
+            repaint();
+
+            // Debug statement
+            System.out.println("Plotted remote point at (" + x + ", " + y + ") with color " + (color.equals(Color.BLACK) ? "Black" : "White"));
         }
 
         /**
@@ -531,12 +602,13 @@ public class MainFrame extends JFrame {
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
+            // Draw the BufferedImage onto the panel
             g.drawImage(canvasImage, 0, 0, null);
         }
     }
 
     /**
-     * Adds a point to the currentPoints list and draws it on the canvas.
+     * Adds a point to the currentPoints list and draws it on the canvas with pen size.
      *
      * @param row   The row (y-coordinate).
      * @param col   The column (x-coordinate).
@@ -544,9 +616,29 @@ public class MainFrame extends JFrame {
      */
     private void addPoint(int row, int col, Color color) {
         int pen = color.equals(Color.BLACK) ? 1 : 0;
-        currentPoints.add(new PointData(col, row, pen)); // x = column (width), y = row (height)
-        drawingPanel.drawPoint(row, col, color);
-        System.out.println("Added point: (" + row + ", " + col + ") with pen=" + pen);
+
+        // Generate all points within the penRadius to simulate pen size
+        for (int dx = -penRadius; dx <= penRadius; dx++) {
+            for (int dy = -penRadius; dy <= penRadius; dy++) {
+                if (dx * dx + dy * dy <= penRadius * penRadius) {
+                    int newRow = row + dy;
+                    int newCol = col + dx;
+
+                    // Clamp to board boundaries
+                    newRow = Math.max(0, Math.min(newRow, Config.BOARD_HEIGHT - 1));
+                    newCol = Math.max(0, Math.min(newCol, Config.BOARD_WIDTH - 1));
+
+                    // Add each affected point
+                    currentPoints.add(new PointData(newCol, newRow, pen));
+
+                    // Debug statement for each point
+                    System.out.println("Adding point to currentPoints: (" + newCol + ", " + newRow + "), pen=" + pen);
+                }
+            }
+        }
+
+        // Draw all affected points locally with pen size
+        drawingPanel.drawLocalPoint(row, col, color);
     }
 
     /**
@@ -568,8 +660,16 @@ public class MainFrame extends JFrame {
         }
         drawMessage.add("points", pointsArray);
 
-        client.sendMessage(gson.toJson(drawMessage));
-        System.out.println("Sent DRAW message with " + currentPoints.size() + " points.");
+        // Debug: Print the DRAW message before sending
+        System.out.println("DRAW Message to be sent: " + gson.toJson(drawMessage));
+
+        try {
+            client.sendMessage(gson.toJson(drawMessage));
+            System.out.println("Sent DRAW message with " + currentPoints.size() + " points.");
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            System.err.println("Failed to send DRAW message: " + ex.getMessage());
+        }
 
         currentPoints.clear();
     }

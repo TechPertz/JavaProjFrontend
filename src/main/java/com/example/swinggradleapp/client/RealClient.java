@@ -137,10 +137,11 @@ public class RealClient implements Client {
                 List<MainFrame.PointData> points = new ArrayList<>();
                 for (int i = 0; i < pointsArray.size(); i++) {
                     JsonObject pointObj = pointsArray.get(i).getAsJsonObject();
-                    int y = pointObj.get("x").getAsInt(); // Swapped
-                    int x = pointObj.get("y").getAsInt(); // Swapped
+                    int x = pointObj.get("x").getAsInt(); // Correctly assign x
+                    int y = pointObj.get("y").getAsInt(); // Correctly assign y
                     int pen = pointObj.get("pen").getAsInt();
                     points.add(new MainFrame.PointData(x, y, pen));
+                    System.out.println("RealClient parsed point: x=" + x + ", y=" + y + ", pen=" + pen);
                 }
                 mainFrame.applyPoints(points);
                 break;
@@ -175,13 +176,13 @@ public class RealClient implements Client {
         System.out.println("Matrix Dimensions: Rows = " + rows + ", Columns = " + cols);
         int[][] matrix = new int[rows][cols];
 
-        for (int x = 0; x < rows; x++) {
-            JsonArray row = matrixArray.get(x).getAsJsonArray();
+        for (int y = 0; y < rows; y++) { // Iterate over rows (y)
+            JsonArray row = matrixArray.get(y).getAsJsonArray();
             if (row.size() != cols) {
-                throw new IndexOutOfBoundsException("Row " + x + " has " + row.size() + " columns; expected " + cols + ".");
+                throw new IndexOutOfBoundsException("Row " + y + " has " + row.size() + " columns; expected " + cols + ".");
             }
-            for (int y = 0; y < cols; y++) {
-                matrix[x][y] = row.get(y).getAsInt();
+            for (int x = 0; x < cols; x++) { // Iterate over columns (x)
+                matrix[y][x] = row.get(x).getAsInt();
             }
         }
 
