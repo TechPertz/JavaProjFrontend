@@ -648,7 +648,7 @@ public class MainFrame extends JFrame {
         int totalPoints = pointsToSend.size();
         int sentPoints = 0;
 
-        final int MAX_POINTS_PER_MESSAGE = 300; // Increased batch size to accommodate more points
+        final int MAX_POINTS_PER_MESSAGE = 300;
 
         while (sentPoints < totalPoints) {
             int end = Math.min(sentPoints + MAX_POINTS_PER_MESSAGE, totalPoints);
@@ -660,17 +660,16 @@ public class MainFrame extends JFrame {
             JsonArray pointsArray = new JsonArray();
             for (PointData point : batch) {
                 JsonObject pointObj = new JsonObject();
-                pointObj.addProperty("x", point.x); // column (width)
-                pointObj.addProperty("y", point.y); // row (height)
+                pointObj.addProperty("x", point.x);
+                pointObj.addProperty("y", point.y);
                 pointObj.addProperty("pen", point.pen);
                 pointsArray.add(pointObj);
             }
             drawMessage.add("points", pointsArray);
 
-            // Debug: Print the DRAW message before sending
             System.out.println("DRAW Message to be sent: " + gson.toJson(drawMessage));
 
-            // Asynchronously send the message
+            // Async
             executor.submit(() -> {
                 try {
                     client.sendMessage(gson.toJson(drawMessage));
