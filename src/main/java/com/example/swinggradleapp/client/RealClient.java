@@ -52,9 +52,10 @@ public class RealClient implements Client {
             public void onClose(int code, String reason, boolean remote) {
                 SwingUtilities.invokeLater(() -> {
                     JOptionPane.showMessageDialog(mainFrame,
-                            "Disconnected from Server.",
+                            "Disconnected from Server.\nReason: " + reason + "\nCode: " + code,
                             "Disconnected",
                             JOptionPane.WARNING_MESSAGE);
+                    System.err.println("WebSocket closed. Code: " + code + ", Reason: " + reason);
                 });
             }
 
@@ -65,6 +66,8 @@ public class RealClient implements Client {
                             "An error occurred: " + ex.getMessage(),
                             "Error",
                             JOptionPane.ERROR_MESSAGE);
+                    System.err.println("WebSocket error: " + ex.getMessage());
+                    ex.printStackTrace();
                 });
             }
         };
@@ -154,12 +157,10 @@ public class RealClient implements Client {
                         JOptionPane.ERROR_MESSAGE);
                 break;
 
-
             default:
                 System.err.println("Unknown message type: " + type);
         }
     }
-
 
     /**
      * Parses the board matrix from JsonArray to 2D int array.

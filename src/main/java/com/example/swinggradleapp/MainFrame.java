@@ -18,6 +18,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * MainFrame represents the primary window of the Collaborative Whiteboard Application.
@@ -41,13 +43,17 @@ public class MainFrame extends JFrame {
 
     private int penRadius = 10; // Default radius, can be modified
 
-    private List<PointData> currentPoints = new ArrayList<>();
+    // Changed from ArrayList to HashSet to eliminate duplicate points
+    private Set<PointData> currentPoints = new HashSet<>();
 
     private boolean isDrawing = false;
 
     private String boardId;
 
     private String username;
+
+    // ExecutorService for asynchronous message sending
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     public MainFrame(String title) {
         super(title);
@@ -90,6 +96,7 @@ public class MainFrame extends JFrame {
                 if (client != null) {
                     client.close();
                 }
+                executor.shutdown(); // Shutdown the executor service
             }
         });
     }
@@ -481,6 +488,20 @@ public class MainFrame extends JFrame {
             this.y = y;
             this.pen = pen;
         }
+
+        // Override equals and hashCode to ensure uniqueness in HashSet
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof PointData)) return false;
+            PointData point = (PointData) o;
+            return x == point.x && y == point.y && pen == point.pen;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(x, y, pen);
+        }
     }
 
     /**
@@ -608,7 +629,7 @@ public class MainFrame extends JFrame {
     }
 
     /**
-     * Adds a point to the currentPoints list and draws it on the canvas with pen size.
+     * Adds a point to the currentPoints set and draws it on the canvas with pen size.
      *
      * @param row   The row (y-coordinate).
      * @param col   The column (x-coordinate).
@@ -617,7 +638,8 @@ public class MainFrame extends JFrame {
     private void addPoint(int row, int col, Color color) {
         int pen = color.equals(Color.BLACK) ? 1 : 0;
 
-        // Generate all points within the penRadius to simulate pen size
+        // Removed step size to collect all points within penRadius
+        // Iterate with step size of 1 for full point density
         for (int dx = -penRadius; dx <= penRadius; dx++) {
             for (int dy = -penRadius; dy <= penRadius; dy++) {
                 if (dx * dx + dy * dy <= penRadius * penRadius) {
@@ -628,7 +650,7 @@ public class MainFrame extends JFrame {
                     newRow = Math.max(0, Math.min(newRow, Config.BOARD_HEIGHT - 1));
                     newCol = Math.max(0, Math.min(newCol, Config.BOARD_WIDTH - 1));
 
-                    // Add each affected point
+                    // Add each affected point to the HashSet (duplicates automatically ignored)
                     currentPoints.add(new PointData(newCol, newRow, pen));
 
                     // Debug statement for each point
@@ -643,34 +665,50 @@ public class MainFrame extends JFrame {
 
     /**
      * Sends the DRAW message with the list of points.
+     * This method batches points into smaller messages to prevent overwhelming the WebSocket connection.
      */
     private void sendDrawMessage() {
         if (currentPoints.isEmpty()) return;
 
-        JsonObject drawMessage = new JsonObject();
-        drawMessage.addProperty("type", "DRAW");
-
-        JsonArray pointsArray = new JsonArray();
-        for (PointData point : currentPoints) {
-            JsonObject pointObj = new JsonObject();
-            pointObj.addProperty("x", point.x); // column (width)
-            pointObj.addProperty("y", point.y); // row (height)
-            pointObj.addProperty("pen", point.pen);
-            pointsArray.add(pointObj);
-        }
-        drawMessage.add("points", pointsArray);
-
-        // Debug: Print the DRAW message before sending
-        System.out.println("DRAW Message to be sent: " + gson.toJson(drawMessage));
-
-        try {
-            client.sendMessage(gson.toJson(drawMessage));
-            System.out.println("Sent DRAW message with " + currentPoints.size() + " points.");
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            System.err.println("Failed to send DRAW message: " + ex.getMessage());
-        }
-
+        List<PointData> pointsToSend = new ArrayList<>(currentPoints);
         currentPoints.clear();
+
+        int totalPoints = pointsToSend.size();
+        int sentPoints = 0;
+
+        final int MAX_POINTS_PER_MESSAGE = 300;
+
+        while (sentPoints < totalPoints) {
+            int end = Math.min(sentPoints + MAX_POINTS_PER_MESSAGE, totalPoints);
+            List<PointData> batch = pointsToSend.subList(sentPoints, end);
+
+            JsonObject drawMessage = new JsonObject();
+            drawMessage.addProperty("type", "DRAW");
+
+            JsonArray pointsArray = new JsonArray();
+            for (PointData point : batch) {
+                JsonObject pointObj = new JsonObject();
+                pointObj.addProperty("x", point.x);
+                pointObj.addProperty("y", point.y);
+                pointObj.addProperty("pen", point.pen);
+                pointsArray.add(pointObj);
+            }
+            drawMessage.add("points", pointsArray);
+
+            System.out.println("DRAW Message to be sent: " + gson.toJson(drawMessage));
+
+            // Async
+            executor.submit(() -> {
+                try {
+                    client.sendMessage(gson.toJson(drawMessage));
+                    System.out.println("Sent DRAW message with " + batch.size() + " points.");
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    System.err.println("Failed to send DRAW message: " + ex.getMessage());
+                }
+            });
+
+            sentPoints = end;
+        }
     }
 }

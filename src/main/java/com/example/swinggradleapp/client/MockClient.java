@@ -48,7 +48,7 @@ public class MockClient implements Client {
     private JsonObject createMockUpdateMessage() {
         JsonObject updateMessage = new JsonObject();
         updateMessage.addProperty("type", "UPDATE");
-        JsonArray pointsArray = generateRandomPoints(5);
+        JsonArray pointsArray = generateRandomPoints(50); // Increased points for better simulation
         updateMessage.add("points", pointsArray);
         return updateMessage;
     }
@@ -57,8 +57,8 @@ public class MockClient implements Client {
         JsonArray pointsArray = new JsonArray();
         for (int i = 0; i < count; i++) {
             JsonObject point = new JsonObject();
-            int x = (int) (Math.random() * Config.BOARD_HEIGHT); // x as vertical (rows)
-            int y = (int) (Math.random() * Config.BOARD_WIDTH);  // y as horizontal (columns)
+            int x = (int) (Math.random() * Config.BOARD_WIDTH);  // x as horizontal (columns)
+            int y = (int) (Math.random() * Config.BOARD_HEIGHT); // y as vertical (rows)
             int pen = Math.random() < 0.5 ? 0 : 1;
             point.addProperty("x", x);
             point.addProperty("y", y);
@@ -72,8 +72,8 @@ public class MockClient implements Client {
         List<MainFrame.PointData> points = new ArrayList<>();
         for (int i = 0; i < pointsArray.size(); i++) {
             JsonObject pointObj = pointsArray.get(i).getAsJsonObject();
-            int x = pointObj.get("x").getAsInt(); // vertical
-            int y = pointObj.get("y").getAsInt(); // horizontal
+            int x = pointObj.get("x").getAsInt(); // horizontal
+            int y = pointObj.get("y").getAsInt(); // vertical
             int pen = pointObj.get("pen").getAsInt();
             points.add(new MainFrame.PointData(x, y, pen));
         }
