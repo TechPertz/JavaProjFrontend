@@ -337,8 +337,7 @@ public class MainFrame extends JFrame {
         eraserButton = new JButton("Eraser");
 
         JSlider penRadiusSlider = new JSlider(JSlider.HORIZONTAL, 1, 10, penRadius);
-        penRadiusSlider.setMajorTickSpacing(10);
-        penRadiusSlider.setMinorTickSpacing(1);
+        penRadiusSlider.setMajorTickSpacing(1);
         penRadiusSlider.setPaintTicks(true);
         penRadiusSlider.setPaintLabels(true);
         penRadiusSlider.setBorder(BorderFactory.createTitledBorder("Pen Radius"));
